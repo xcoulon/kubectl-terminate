@@ -1,0 +1,14 @@
+linters:
+  enable:
+    - megacheck
+    - govet
+    - gocyclo
+  enable-all: false
+  disable:
+    - maligned
+    - prealloc
+  disable-all: false
+  presets:
+    - bugs
+    - unused
+  fast: false
