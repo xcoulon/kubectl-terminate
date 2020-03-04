@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/golangci/golangci-lint v1.23.8 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/spf13/cobra v0.0.5

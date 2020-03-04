@@ -15,12 +15,15 @@ import (
 
 // Terminate terminates the resource with the given type and name, ie, it removes
 // all pending finalizers and deletes it afterwards
-func Terminate(kind, name, namespace string, kubeconfigReader io.Reader) error {
+func Terminate(kind, namespace, name string, kubeconfigReader io.Reader) error {
 	kubeconfig, err := newKubeConfig(kubeconfigReader)
 	if err != nil {
 		return err
 	}
 	discoveryClient, err := newDiscoveryClient(kubeconfig)
+	if err != nil {
+		return err
+	}
 	apiresource, err := lookupAPIResource(kind, discoveryClient)
 	if err != nil {
 		return err
@@ -136,7 +139,9 @@ func checkResource(r *unstructured.Unstructured) error {
 
 func removeFinalizers(r *unstructured.Unstructured) error {
 	err := checkResource(r)
-	if err != nil {
+	if err != nil && IsMissingFinalizerError(err) {
+		return nil // do not modify the existing resource
+	} else if err != nil {
 		return err
 	}
 	return unstructured.SetNestedSlice(r.Object, []interface{}{}, "metadata", "finalizers") // set an empty slice to override the current value
@@ -149,4 +154,10 @@ type MissingFinalizerError struct {
 
 func (e MissingFinalizerError) Error() string {
 	return fmt.Sprintf("resource '%s' has no finalizers in its metadata", e.name)
+}
+
+// IsMissingFinalizerError returns 'true' if the given error is a MissingFinalizerError
+func IsMissingFinalizerError(err error) bool {
+	_, is := err.(MissingFinalizerError)
+	return is
 }

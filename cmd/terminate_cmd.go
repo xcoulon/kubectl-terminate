@@ -20,7 +20,7 @@ func init() {
 		Use:   "terminate",
 		Short: "removes the finalizers and deletes the given resource",
 		Args:  cobra.RangeArgs(1, 2), // for now, accept in the form of `kind name` (not `kind/name`)
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			var kind, name string
 			if len(args) == 1 {
 				args = strings.Split(args[0], "/")
@@ -29,15 +29,13 @@ func init() {
 			name = args[1]
 			kubeconfigFile, err := getKubeconfigFile(kubeconfig)
 			if err != nil {
-				fmt.Printf("error while locading KUBECONFIG: %s\n", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("error while locating KUBECONFIG: %w", err)
 			}
-
-			err = terminate.Terminate(kind, name, namespace, kubeconfigFile)
+			err = terminate.Terminate(kind, namespace, name, kubeconfigFile)
 			if err != nil {
-				fmt.Printf("error while terminating resource: %s\n", err.Error())
-				os.Exit(1)
+				return fmt.Errorf("error while terminating resource: %w", err)
 			}
+			return nil
 		},
 	}
 	TerminateCmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "", "", "(optional) absolute path to the kubeconfig file")

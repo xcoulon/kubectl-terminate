@@ -2,6 +2,7 @@ package terminate
 
 import (
 	"bytes"
+	"io"
 	"net/http/httptest"
 	"testing"
 
@@ -13,13 +14,40 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/clientcmd"
 )
+
+func TestTerminate(t *testing.T) {
+
+	t.Run("ok", func(t *testing.T) {
+
+		t.Run("in default namespace", func(t *testing.T) {
+			// given
+			kubeconfig, server := setup(t)
+			defer server.Close()
+			// when
+			err := Terminate("pod", "", "foo", kubeconfig)
+			// then
+			require.NoError(t, err)
+		})
+
+		t.Run("in other namespace", func(t *testing.T) {
+			// given
+			kubeconfig, server := setup(t)
+			defer server.Close()
+			// when
+			err := Terminate("pod", "explicit", "foo", kubeconfig)
+			// then
+			require.NoError(t, err)
+		})
+	})
+}
 
 func TestLookupAPIResource(t *testing.T) {
 
 	// given
-	kubeconfig, server := setup(t)
+	kubeconfigContent, server := setup(t)
+	kubeconfig, err := newKubeConfig(kubeconfigContent)
+	require.NoError(t, err)
 	defer server.Close()
 	client, err := newDiscoveryClient(kubeconfig)
 	require.NoError(t, err)
@@ -173,7 +201,9 @@ func TestLookupAPIResource(t *testing.T) {
 func TestFetchResource(t *testing.T) {
 
 	// given
-	kubeconfig, server := setup(t)
+	kubeconfigContent, server := setup(t)
+	kubeconfig, err := newKubeConfig(kubeconfigContent)
+	require.NoError(t, err)
 	defer server.Close()
 
 	t.Run("ok", func(t *testing.T) {
@@ -238,75 +268,129 @@ func TestFetchResource(t *testing.T) {
 		})
 	})
 }
-func TestRemoveFinalizers(t *testing.T) {
 
-	t.Run("ok", func(t *testing.T) {
+func TestCheckResource(t *testing.T) {
 
-		t.Run("pod", func(t *testing.T) {
-			// given
-			object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Pod",
+	t.Run("pod with finalizer", func(t *testing.T) {
+		// given
+		object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Finalizers: []string{
+					"custom",
 				},
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Finalizers: []string{
-						"custom",
-					},
-				},
-				Spec: corev1.PodSpec{},
-				Status: corev1.PodStatus{
-					Phase: "Terminating",
-				},
-			})
-			require.NoError(t, err)
-			actual := &unstructured.Unstructured{
-				Object: object,
-			}
-			// when
-			err = removeFinalizers(actual)
-			// then
-			require.NoError(t, err)
-			assert.Empty(t, actual.GetFinalizers())
+			},
+			Spec: corev1.PodSpec{},
+			Status: corev1.PodStatus{
+				Phase: "Terminating",
+			},
 		})
+		require.NoError(t, err)
+		actual := &unstructured.Unstructured{
+			Object: object,
+		}
+		// when
+		err = checkResource(actual)
+		// then
+		require.NoError(t, err)
 	})
 
-	t.Run("failures", func(t *testing.T) {
-
-		t.Run("missing finalizers", func(t *testing.T) {
-			// given
-			actual, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Namespace",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace:  "bar",
-					Name:       "foo",
-					Finalizers: []string{},
-				},
-				Spec: corev1.PodSpec{},
-				Status: corev1.PodStatus{
-					Phase: "running",
-				},
-			})
-			require.NoError(t, err)
-			// when
-			err = checkResource(&unstructured.Unstructured{
-				Object: actual,
-			})
-			// then
-			assert.IsType(t, err, MissingFinalizerError{})
+	t.Run("pod without finalizer", func(t *testing.T) {
+		// given
+		object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:  "bar",
+				Name:       "foo",
+				Finalizers: []string{},
+			},
+			Spec: corev1.PodSpec{},
+			Status: corev1.PodStatus{
+				Phase: "running",
+			},
 		})
+		require.NoError(t, err)
+		actual := &unstructured.Unstructured{
+			Object: object,
+		}
+		// when
+		err = checkResource(actual)
+		require.Error(t, err)
+		assert.IsType(t, MissingFinalizerError{}, err)
+		assert.Equal(t, "resource 'foo' has no finalizers in its metadata", err.Error())
 	})
 }
 
-func setup(t *testing.T) (clientcmd.ClientConfig, *httptest.Server) {
+func TestRemoveFinalizers(t *testing.T) {
+
+	t.Run("pod with finalizer", func(t *testing.T) {
+		// given
+		object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Finalizers: []string{
+					"custom",
+				},
+			},
+			Spec: corev1.PodSpec{},
+			Status: corev1.PodStatus{
+				Phase: "Terminating",
+			},
+		})
+		require.NoError(t, err)
+		actual := &unstructured.Unstructured{
+			Object: object,
+		}
+		// when
+		err = removeFinalizers(actual)
+		// then
+		require.NoError(t, err)
+		assert.Empty(t, actual.GetFinalizers())
+	})
+
+	t.Run("pod without finalizer", func(t *testing.T) {
+		// given
+		object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&corev1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:  "bar",
+				Name:       "foo",
+				Finalizers: []string{},
+			},
+			Spec: corev1.PodSpec{},
+			Status: corev1.PodStatus{
+				Phase: "running",
+			},
+		})
+		require.NoError(t, err)
+		actual := &unstructured.Unstructured{
+			Object: object,
+		}
+		// when
+		err = removeFinalizers(actual)
+		require.NoError(t, err)
+		assert.Empty(t, actual.GetFinalizers())
+	})
+}
+
+func setup(t *testing.T) (io.Reader, *httptest.Server) {
 	server := test.NewServer(t)
-	kubeconfigContent := test.NewKubeConfigContent(t, server.URL)
-	kubeconfig, err := newKubeConfig(bytes.NewBuffer(kubeconfigContent))
-	require.NoError(t, err)
-	return kubeconfig, server
+	kubeconfigContent := bytes.NewBuffer(test.NewKubeConfigContent(t, server.URL))
+	return kubeconfigContent, server
 }
