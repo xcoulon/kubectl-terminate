@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// returns a new HTTP Server which supports:
+// NewServer returns a new HTTP Server which supports:
 // - calls to `/api`
 // - calls to `/apis`
 // - calls on some predefined resources
@@ -129,6 +129,21 @@ func NewServer(t *testing.T) *httptest.Server {
 						Phase: "Terminating",
 					},
 				}
+			case "/api/v1/namespaces/explicit/pods/bar": // no finalizer on this one
+				response = corev1.Pod{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Pod",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "explicit",
+						Name:      "foo",
+					},
+					Spec: corev1.PodSpec{},
+					Status: corev1.PodStatus{
+						Phase: "Terminating",
+					},
+				}
 			default:
 				fmt.Printf("object not found: %s %s\n", req.Method, req.URL)
 				w.WriteHeader(http.StatusNotFound)
@@ -144,7 +159,7 @@ func NewServer(t *testing.T) *httptest.Server {
 				data, err := ioutil.ReadAll(req.Body)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(err.Error()))
+					w.Write([]byte(err.Error())) // nolint: errcheck
 					return
 				}
 				pod := metav1.ObjectMeta{}
@@ -152,7 +167,7 @@ func NewServer(t *testing.T) *httptest.Server {
 				if err != nil {
 					fmt.Printf("error while unmarshaling incoming request body: %v\n", err)
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(err.Error()))
+					w.Write([]byte(err.Error())) // nolint: errcheck
 					return
 				}
 				if len(pod.GetFinalizers()) > 0 {
@@ -160,12 +175,12 @@ func NewServer(t *testing.T) *httptest.Server {
 					w.WriteHeader(http.StatusBadRequest)
 					// let's just return the request body in the response
 					response, _ := ioutil.ReadAll(req.Body)
-					w.Write(bytes.NewBuffer(response).Bytes())
+					w.Write(bytes.NewBuffer(response).Bytes()) // nolint: errcheck
 					return
 				}
 				w.WriteHeader(http.StatusOK)
 				// let's just return the request body in the response
-				w.Write(data)
+				w.Write(data) // nolint: errcheck
 				return
 			}
 		case "DELETE":
@@ -189,6 +204,6 @@ func NewServer(t *testing.T) *httptest.Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(output)
+		w.Write(output) // nolint: errcheck
 	}))
 }

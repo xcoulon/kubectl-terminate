@@ -50,6 +50,7 @@ func NewKubeConfigContent(t *testing.T, serverURL string) []byte {
 	require.NoError(t, err)
 	r := bytes.NewBuffer(nil)
 	err = tmpl.Execute(r, serverURL)
+	require.NoError(t, err)
 	fmt.Printf("kubeconfig:\n%s\n", r.String())
 	return r.Bytes()
 }

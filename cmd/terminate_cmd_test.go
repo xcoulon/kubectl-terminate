@@ -57,7 +57,6 @@ func TestTerminateCmd(t *testing.T) {
 					}
 				}()
 				os.Setenv("KUBECONFIG", kubeconfig.Name())
-				// defer os.Remove(kubeconfig.Name())
 				// when
 				_, err := executeCommand(cmd.TerminateCmd, "pod", "foo")
 				// then
@@ -65,6 +64,7 @@ func TestTerminateCmd(t *testing.T) {
 			})
 
 		})
+
 		t.Run("with userhome kubeconfig", func(t *testing.T) {
 
 			t.Run("custom resource with compact name", func(t *testing.T) {
@@ -86,11 +86,29 @@ func TestTerminateCmd(t *testing.T) {
 			})
 		})
 
+		t.Run("with invalid kubeconfig", func(t *testing.T) {
+			// given
+			oldKubeConfig := os.Getenv("KUBECONFIG")
+			defer func() {
+				if oldKubeConfig != "" {
+					os.Setenv("KUBECONFIG", oldKubeConfig)
+				} else {
+					os.Unsetenv("KUBECONFIG")
+				}
+			}()
+			os.Setenv("KUBECONFIG", "invalid")
+			// when
+			_, err := executeCommand(cmd.TerminateCmd, "pod", "foo")
+			// then
+			require.NoError(t, err)
+		})
+
 	})
 
 }
 
 // see https://github.com/spf13/cobra/blob/master/command_test.go#L16-L29
+// nolint: unparam
 func executeCommand(cmd *cobra.Command, args ...string) (output string, err error) {
 	buf := new(bytes.Buffer)
 	cmd.SetOutput(buf)
