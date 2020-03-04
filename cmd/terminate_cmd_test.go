@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xcoulon/kubectl-terminate/cmd"
 	"github.com/xcoulon/kubectl-terminate/test"
@@ -26,9 +27,10 @@ func TestTerminateCmd(t *testing.T) {
 				_, kubeconfig := test.NewKubeConfigFile(t, server.URL)
 				defer os.Remove(kubeconfig.Name())
 				// when
-				_, err := executeCommand(cmd.TerminateCmd, "--kubeconfig="+kubeconfig.Name(), "pod", "foo")
+				out, err := executeCommand(cmd.TerminateCmd, "--kubeconfig="+kubeconfig.Name(), "pod", "foo")
 				// then
 				require.NoError(t, err)
+				assert.Equal(t, "pod \"foo\" terminated", out)
 
 			})
 

@@ -35,6 +35,7 @@ func init() {
 			if err != nil {
 				return fmt.Errorf("error while terminating resource: %w", err)
 			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s \"%s\" terminated", kind, name)
 			return nil
 		},
 	}
