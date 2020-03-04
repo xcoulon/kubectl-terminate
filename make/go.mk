@@ -10,7 +10,7 @@ export GO111MODULE
 ## Build the operator
 build: 
 	@echo "building..."
-	$(Q)CGO_ENABLED=0 \
+	CGO_ENABLED=0 \
 		go build ${V_FLAG} \
 		-ldflags "-X ${GO_PACKAGE_PATH}/cmd.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/BuildTime=${BUILD_TIME}" \
 		-o $(OUT_DIR)/kubectl-terminate \
@@ -20,5 +20,5 @@ build:
 ## Builds and installs the operator in $GOPATH/bin
 install: build
 	@echo "installing..."
-	$(Q) mv $(OUT_DIR)/kubectl-terminate $(GOPATH)/bin
+	 mv $(OUT_DIR)/kubectl-terminate $(GOPATH)/bin
 
