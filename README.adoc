@@ -1,20 +1,20 @@
 = kubectl-terminate
 
-Sometimes, you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this resource is already gone (maybe it was uninstalled just before, for example). This is quite annoying and all `--force`, `grace-period` flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's face it, it's a cumbersome 😬
+Sometimes you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (maybe it was uninstalled, for example). This is quite annoying and all the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's face it, it's a bit cumbersome 😬
 
 Say hello to `kubectl-terminate` 👋 
 
-This command takes care of removing the finalizers and deleting on your behalf, using the KUBECONFIG settings of your choice (default location in `$HOME`, via the `KUBECONFIG` env var with the `--kubeconfig` flag). 
+This command takes care of removing the finalizers and deleting the resource on your behalf, using the KUBECONFIG settings of your choice (default location in `$HOME` or via the `KUBECONFIG` env var with the `--kubeconfig` flag). 
 
-And as its name is in the `kubectl-*` format, it also works as an extension to `kubectl` and `oc` (for the OpenShift users). Just make sure that the binary in your $PATH and use it with `kubectl terminate pod/foo` or `oc terminate pod/foo` 🎉
+And as its name follows the `kubectl-*` pattern, it also works as an extension to `kubectl` and `oc` (for the OpenShift 4 users). Just make sure that the binary in your $PATH and use it with `kubectl terminate pod/cheesecake` or `oc terminate pod/cheesecake` 🎉
 
 == Installation
 
-For now, just run `go install github.com/xcoulon/kubectl-terminate` and make sure that `$GOPAH/bin` is in your `$PATH` or move manually in a valid directory.
+For now, run `go install github.com/xcoulon/kubectl-terminate` and make sure that `$GOPAH/bin` is in your `$PATH` or move manually in a valid directory.
 
 == Contribution
 
-Fee free to open issues if you find bugs or require more features. Also, PRs are welcome if you're in the mood for that ;)
+Feel free to open issues if you find bugs or require more features. Also, PRs are welcome if you're in the mood for that ;)
 
 == License
 
