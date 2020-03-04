@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: test
-      run: make test
+      run: make test-with-coverage
     - name: Codecov
       uses: codecov/codecov-action@v1.0.5
       with:
