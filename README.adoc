@@ -1,21 +1,28 @@
 = kubectl-terminate
 
+image:https://godoc.org/github.com/xcoulon/kubectl-terminate?status.svg["GoDoc", link="https://godoc.org/github.com/xcoulon/kubectl-terminate"]
+image:https://goreportcard.com/badge/github.com/xcoulon/kubectl-terminate["Go Report Card", link="https://goreportcard.com/report/github.com/xcoulon/kubectl-terminate"]
+image:https://github.com/xcoulon/kubectl-terminate/workflows/CI/badge.svg["CI", link="https://github.com/xcoulon/kubectl-terminate/actions?query=workflow%3ACI"]
+image:https://codecov.io/gh/xcoulon/kubectl-terminate/branch/master/graph/badge.svg["Codecov", link="https://codecov.io/gh/xcoulon/kubectl-terminate"]
+image:https://img.shields.io/badge/License-Apache%202.0-blue.svg["License", link="https://opensource.org/licenses/Apache-2.0"]
+
+
 Sometimes you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (maybe it was uninstalled, for example). This is quite annoying and all the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's face it, it's a bit cumbersome 😬
 
 Say hello to `kubectl-terminate` 👋 
 
-This command takes care of removing the finalizers and deleting the resource on your behalf, using the KUBECONFIG settings of your choice (default location in `$HOME` or via the `KUBECONFIG` env var with the `--kubeconfig` flag). 
+This command takes care of removing the finalizers and deleting the resource on your behalf, using the connection settings of your choice, i.e, using the `KUBECONFIG` env var if it exists, the `--kubeconfig` flag if specified or the default location (`$HOME` on Linux and macOS and `USERPROFILE` on Windows). 
 
-And as its name follows the `kubectl-*` pattern, it also works as an extension to `kubectl` and `oc` (for the OpenShift 4 users). Just make sure that the binary in your $PATH and use it with `kubectl terminate pod/cheesecake` or `oc terminate pod/cheesecake` 🎉
+And as its name follows the `kubectl-*` pattern, it also works as a plugin to `kubectl` and `oc` (for the OpenShift 4 users). Just make sure that the binary is in your `$PATH` and use it with `kubectl terminate pod/cheesecake` or `oc terminate pod/cheesecake` 🎉
 
 == Installation
 
-For now, run `go install github.com/xcoulon/kubectl-terminate` and make sure that `$GOPAH/bin` is in your `$PATH` or move manually in a valid directory.
+For now, run `go install github.com/xcoulon/kubectl-terminate` and make sure that `$GOPAH/bin` is in your `$PATH` or move `$GOPAH/bin/kubectl-terminate` in one of the directories of `$PATH`.
 
 == Contribution
 
-Feel free to open issues if you find bugs or require more features. Also, PRs are welcome if you're in the mood for that ;)
+Feel free to open https://github.com/kubernetes-sigs/krew-index/issues[issues] if you find bugs or require more features. Also, PRs are welcome if you're in the mood for that 🙌
 
 == License
 
-This code is licensed under the Apache License, version 2.0.
+This code is licensed under the https://github.com/xcoulon/kubectl-terminate/blob/master/LICENSE[Apache License, version 2.0].
