@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"io"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/xcoulon/kubectl-terminate/pkg/logger"
 	"github.com/xcoulon/kubectl-terminate/test"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +20,8 @@ import (
 
 func TestTerminate(t *testing.T) {
 
+	log := logger.NewLogger(os.Stdout, 1) // includes 'debug' messages
+
 	t.Run("ok", func(t *testing.T) {
 
 		t.Run("in default namespace", func(t *testing.T) {
@@ -25,7 +29,7 @@ func TestTerminate(t *testing.T) {
 			kubeconfig, server := setup(t)
 			defer server.Close()
 			// when
-			err := Terminate("pod", "", "foo", kubeconfig)
+			err := Terminate("pod", "", "foo", kubeconfig, log)
 			// then
 			require.NoError(t, err)
 		})
@@ -35,7 +39,7 @@ func TestTerminate(t *testing.T) {
 			kubeconfig, server := setup(t)
 			defer server.Close()
 			// when
-			err := Terminate("pod", "explicit", "foo", kubeconfig)
+			err := Terminate("pod", "explicit", "foo", kubeconfig, log)
 			// then
 			require.NoError(t, err)
 		})

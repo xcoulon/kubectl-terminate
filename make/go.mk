@@ -13,7 +13,7 @@ build:
 	@-CGO_ENABLED=0 \
 		go build \
 		-o $(OUT_DIR)/kubectl-terminate \
-		main.go
+		cmd/main.go
 
 .PHONY: install
 ## Builds and installs the operator in $GOPATH/bin

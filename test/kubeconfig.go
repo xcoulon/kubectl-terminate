@@ -28,13 +28,14 @@ current-context: test-server`
 // NewKubeConfigFile returns the path to a the kubeconfig file to access
 // the server with the given URL
 func NewKubeConfigFile(t *testing.T, serverURL string) (home string, kubeconfig *os.File) {
-	content := NewKubeConfigContent(t, serverURL)
 	homeDir := os.TempDir()
 	dotKubeDir := filepath.Join(homeDir, ".kube")
 	err := os.MkdirAll(dotKubeDir, os.ModePerm)
 	require.NoError(t, err)
-	f, err := os.Create(filepath.Join(dotKubeDir, "kubeconfig"))
+	f, err := os.Create(filepath.Join(dotKubeDir, "config"))
 	require.NoError(t, err)
+	content := NewKubeConfigContent(t, serverURL)
+	fmt.Printf("kubeconfig: %s\n%s\n", f.Name(), string(content))
 	_, err = f.Write(content)
 	require.NoError(t, err)
 	err = f.Close()
@@ -51,6 +52,5 @@ func NewKubeConfigContent(t *testing.T, serverURL string) []byte {
 	r := bytes.NewBuffer(nil)
 	err = tmpl.Execute(r, serverURL)
 	require.NoError(t, err)
-	fmt.Printf("kubeconfig:\n%s\n", r.String())
 	return r.Bytes()
 }

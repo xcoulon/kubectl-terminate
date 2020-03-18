@@ -1,15 +1,16 @@
-package cmd_test
+package terminate_test
 
 import (
 	"bytes"
 	"os"
 	"testing"
 
+	"github.com/xcoulon/kubectl-terminate/cmd/terminate"
+	"github.com/xcoulon/kubectl-terminate/test"
+
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/xcoulon/kubectl-terminate/cmd"
-	"github.com/xcoulon/kubectl-terminate/test"
 )
 
 func TestTerminateCmd(t *testing.T) {
@@ -27,10 +28,10 @@ func TestTerminateCmd(t *testing.T) {
 				_, kubeconfig := test.NewKubeConfigFile(t, server.URL)
 				defer os.Remove(kubeconfig.Name())
 				// when
-				out, err := executeCommand(cmd.TerminateCmd, "--kubeconfig="+kubeconfig.Name(), "pod", "foo")
+				out, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "pod", "foo")
 				// then
 				require.NoError(t, err)
-				assert.Equal(t, "pod \"foo\" terminated", out)
+				assert.Equal(t, "pod \"foo\" terminated\n", out)
 
 			})
 
@@ -39,7 +40,7 @@ func TestTerminateCmd(t *testing.T) {
 				_, kubeconfig := test.NewKubeConfigFile(t, server.URL)
 				defer os.Remove(kubeconfig.Name())
 				// when
-				_, err := executeCommand(cmd.TerminateCmd, "--kubeconfig="+kubeconfig.Name(), "--namespace=explicit", "pod", "foo")
+				_, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "--namespace=explicit", "pod", "foo")
 				// then
 				require.NoError(t, err)
 			})
@@ -60,7 +61,7 @@ func TestTerminateCmd(t *testing.T) {
 				}()
 				os.Setenv("KUBECONFIG", kubeconfig.Name())
 				// when
-				_, err := executeCommand(cmd.TerminateCmd, "pod", "foo")
+				_, err := executeCommand(terminate.NewCommand(), "pod", "foo")
 				// then
 				require.NoError(t, err)
 			})
@@ -82,11 +83,15 @@ func TestTerminateCmd(t *testing.T) {
 				}()
 				os.Setenv("HOME", homeDir)
 				// when
-				_, err := executeCommand(cmd.TerminateCmd, "pod/foo")
+				_, err := executeCommand(terminate.NewCommand(), "pod/foo")
 				// then
 				require.NoError(t, err)
 			})
 		})
+
+	})
+
+	t.Run("failures", func(t *testing.T) {
 
 		t.Run("with invalid kubeconfig", func(t *testing.T) {
 			// given
@@ -100,11 +105,11 @@ func TestTerminateCmd(t *testing.T) {
 			}()
 			os.Setenv("KUBECONFIG", "invalid")
 			// when
-			_, err := executeCommand(cmd.TerminateCmd, "pod", "foo")
+			_, err := executeCommand(terminate.NewCommand(), "pod", "foo")
 			// then
-			require.NoError(t, err)
+			require.Error(t, err)
+			assert.Equal(t, "error while locating KUBECONFIG: open invalid: no such file or directory", err.Error())
 		})
-
 	})
 
 }
