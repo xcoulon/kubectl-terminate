@@ -5,6 +5,9 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/xcoulon/kubectl-terminate/pkg/logger"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -15,7 +18,7 @@ import (
 
 // Terminate terminates the resource with the given type and name, ie, it removes
 // all pending finalizers and deletes it afterwards
-func Terminate(kind, namespace, name string, kubeconfigReader io.Reader) error {
+func Terminate(kind, namespace, name string, kubeconfigReader io.Reader, log logger.Logger) error {
 	kubeconfig, err := newKubeConfig(kubeconfigReader)
 	if err != nil {
 		return err
@@ -40,11 +43,19 @@ func Terminate(kind, namespace, name string, kubeconfigReader io.Reader) error {
 	if err != nil {
 		return err
 	}
+	log.Debug("updating resource '%s'", resource.GetName())
 	resource, err = cl.Update(resource, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	return cl.Delete(resource.GetName(), &metav1.DeleteOptions{})
+	log.Debug("deleting resource '%s'", resource.GetName())
+	if err := cl.Delete(resource.GetName(), &metav1.DeleteOptions{}); !errors.IsNotFound(err) {
+		// do not ignore errors unless it's a "NotFound" error, which may happen
+		// because the resource was scheduled for deletion and the update to remove its finalizer
+		// (see above) was enough to trigger its deletion
+		return err
+	}
+	return nil
 }
 
 func newKubeConfig(r io.Reader) (clientcmd.ClientConfig, error) {
