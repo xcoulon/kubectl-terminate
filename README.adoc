@@ -17,7 +17,7 @@ And as its name follows the `kubectl-*` pattern, it also works as a plugin to `k
 
 == Installation
 
-For now, run `go install github.com/xcoulon/kubectl-terminate` and make sure that `$GOPAH/bin` is in your `$PATH` or move `$GOPAH/bin/kubectl-terminate` in one of the directories of `$PATH`.
+For now, run `go install github.com/xcoulon/kubectl-terminate/cmd` and make sure that `$GOPAH/bin` is in your `$PATH` or move `$GOPAH/bin/kubectl-terminate` in one of the directories of `$PATH`.
 
 == Contribution
 
