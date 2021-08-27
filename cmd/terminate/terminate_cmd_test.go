@@ -19,6 +19,16 @@ func TestTerminateCmd(t *testing.T) {
 	server := test.NewServer(t)
 	defer server.Close()
 
+	oldKubeConfig := os.Getenv("KUBECONFIG")
+	defer func() {
+		if oldKubeConfig != "" {
+			os.Setenv("KUBECONFIG", oldKubeConfig)
+		} else {
+			os.Unsetenv("KUBECONFIG")
+		}
+	}()
+	os.Unsetenv("KUBECONFIG")
+
 	t.Run("ok", func(t *testing.T) {
 
 		t.Run("with custom kubeconfig", func(t *testing.T) {
@@ -28,19 +38,19 @@ func TestTerminateCmd(t *testing.T) {
 				_, kubeconfig := test.NewKubeConfigFile(t, server.URL)
 				defer os.Remove(kubeconfig.Name())
 				// when
-				out, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "pod", "foo")
+				out, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "pod", "cookie")
 				// then
 				require.NoError(t, err)
-				assert.Equal(t, "pod \"foo\" terminated\n", out)
+				assert.Equal(t, "pod \"cookie\" terminated\n", out)
 
 			})
 
-			t.Run("pod in explicit namespace", func(t *testing.T) {
+			t.Run("pod in dessert namespace", func(t *testing.T) {
 				// given
 				_, kubeconfig := test.NewKubeConfigFile(t, server.URL)
 				defer os.Remove(kubeconfig.Name())
 				// when
-				_, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "--namespace=explicit", "pod", "foo")
+				_, err := executeCommand(terminate.NewCommand(), "--kubeconfig="+kubeconfig.Name(), "--namespace=dessert", "pod", "cookie")
 				// then
 				require.NoError(t, err)
 			})
@@ -61,7 +71,7 @@ func TestTerminateCmd(t *testing.T) {
 				}()
 				os.Setenv("KUBECONFIG", kubeconfig.Name())
 				// when
-				_, err := executeCommand(terminate.NewCommand(), "pod", "foo")
+				_, err := executeCommand(terminate.NewCommand(), "pod", "cookie")
 				// then
 				require.NoError(t, err)
 			})
@@ -70,22 +80,50 @@ func TestTerminateCmd(t *testing.T) {
 
 		t.Run("with userhome kubeconfig", func(t *testing.T) {
 
-			t.Run("custom resource with compact name", func(t *testing.T) {
-				// given
-				homeDir, _ := test.NewKubeConfigFile(t, server.URL)
-				oldHome := os.Getenv("HOME")
-				defer func() {
-					if oldHome != "" {
-						os.Setenv("HOME", oldHome)
-					} else {
-						os.Unsetenv("HOME")
-					}
-				}()
-				os.Setenv("HOME", homeDir)
-				// when
-				_, err := executeCommand(terminate.NewCommand(), "pod/foo")
-				// then
-				require.NoError(t, err)
+			// given
+			homeDir, _ := test.NewKubeConfigFile(t, server.URL)
+			oldHome := os.Getenv("HOME")
+			defer func() {
+				if oldHome != "" {
+					os.Setenv("HOME", oldHome)
+				} else {
+					os.Unsetenv("HOME")
+				}
+			}()
+			os.Setenv("HOME", homeDir)
+
+			t.Run("single resource", func(t *testing.T) {
+
+				t.Run("with compact name", func(t *testing.T) {
+					// when
+					_, err := executeCommand(terminate.NewCommand(), "pod/cookie")
+					// then
+					require.NoError(t, err)
+				})
+
+				t.Run("with splitted name", func(t *testing.T) {
+					// when
+					_, err := executeCommand(terminate.NewCommand(), "pod", "cookie")
+					// then
+					require.NoError(t, err)
+				})
+			})
+
+			t.Run("multiple resources", func(t *testing.T) {
+
+				t.Run("with compact names", func(t *testing.T) {
+					// when
+					_, err := executeCommand(terminate.NewCommand(), "pod/cookie", "deploy/latte")
+					// then
+					require.NoError(t, err)
+				})
+
+				t.Run("with splitted names", func(t *testing.T) {
+					// when
+					_, err := executeCommand(terminate.NewCommand(), "pod", "cookie", "cookie2")
+					// then
+					require.NoError(t, err)
+				})
 			})
 		})
 
@@ -105,7 +143,7 @@ func TestTerminateCmd(t *testing.T) {
 			}()
 			os.Setenv("KUBECONFIG", "invalid")
 			// when
-			_, err := executeCommand(terminate.NewCommand(), "pod", "foo")
+			_, err := executeCommand(terminate.NewCommand(), "pod", "cookie")
 			// then
 			require.Error(t, err)
 			assert.Equal(t, "error while locating KUBECONFIG: open invalid: no such file or directory", err.Error())

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/xcoulon/kubectl-terminate/pkg/logger"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -16,9 +18,16 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// ResourceMetadata the metadata of the resource to delete
+type ResourceMetadata struct {
+	Kind      string
+	Namespace string
+	Name      string
+}
+
 // Terminate terminates the resource with the given type and name, ie, it removes
 // all pending finalizers and deletes it afterwards
-func Terminate(kind, namespace, name string, kubeconfigReader io.Reader, log logger.Logger) error {
+func Terminate(metadata []ResourceMetadata, kubeconfigReader io.Reader, log logger.Logger) error {
 	kubeconfig, err := newKubeConfig(kubeconfigReader)
 	if err != nil {
 		return err
@@ -27,33 +36,40 @@ func Terminate(kind, namespace, name string, kubeconfigReader io.Reader, log log
 	if err != nil {
 		return err
 	}
-	apiresource, err := lookupAPIResource(kind, discoveryClient)
-	if err != nil {
-		return err
-	}
-	cl, err := newResourceClient(kubeconfig, namespace, apiresource)
-	if err != nil {
-		return err
-	}
-	resource, err := cl.Get(name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	err = removeFinalizers(resource)
-	if err != nil {
-		return err
-	}
-	log.Debug("updating resource '%s'", resource.GetName())
-	resource, err = cl.Update(resource, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	log.Debug("deleting resource '%s'", resource.GetName())
-	if err := cl.Delete(resource.GetName(), &metav1.DeleteOptions{}); !errors.IsNotFound(err) {
-		// do not ignore errors unless it's a "NotFound" error, which may happen
-		// because the resource was scheduled for deletion and the update to remove its finalizer
-		// (see above) was enough to trigger its deletion
-		return err
+	for _, m := range metadata {
+		log.Debug("loading API resource")
+		apiresource, err := lookupAPIResource(m.Kind, discoveryClient, log)
+		if err != nil {
+			return err
+		}
+		log.Debug("initializing client")
+		cl, err := newResourceClient(kubeconfig, m.Namespace, apiresource)
+		if err != nil {
+			return err
+		}
+		log.Debug("loading resource '%s/%s' in namespace '%s'", m.Kind, m.Name, m.Namespace)
+		resource, err := cl.Get(m.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		log.Debug("removing finalizers on '%s/%s'", resource.GetKind(), resource.GetName())
+		err = removeFinalizers(resource)
+		if err != nil {
+			return err
+		}
+		log.Debug("updating '%s/%s'", resource.GetKind(), resource.GetName())
+		resource, err = cl.Update(resource, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		log.Debug("deleting '%s/%s'", resource.GetKind(), resource.GetName())
+		if err := cl.Delete(resource.GetName(), &metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			// do not ignore errors unless it's a "NotFound" error, which may happen
+			// because the resource was scheduled for deletion and the update to remove its finalizer
+			// (see above) was enough to trigger its deletion
+			return err
+		}
+		log.Info("%s \"%s\" terminated", m.Kind, m.Name)
 	}
 	return nil
 }
@@ -74,8 +90,13 @@ func newDiscoveryClient(kubeconfig clientcmd.ClientConfig) (*discovery.Discovery
 	return discovery.NewDiscoveryClientForConfig(config)
 }
 
+var apiResourceCache = make(map[string]metav1.APIResource)
+
 // find the API for the given resource type
-func lookupAPIResource(n string, cl discovery.DiscoveryInterface) (metav1.APIResource, error) {
+func lookupAPIResource(n string, cl discovery.DiscoveryInterface, log logger.Logger) (metav1.APIResource, error) {
+	if r, exists := apiResourceCache[n]; exists {
+		return r, nil
+	}
 	apiResourceLists, err := cl.ServerPreferredResources()
 	if err != nil {
 		return metav1.APIResource{}, err
@@ -86,18 +107,22 @@ func lookupAPIResource(n string, cl discovery.DiscoveryInterface) (metav1.APIRes
 			return metav1.APIResource{}, err
 		}
 		for _, r := range rl.APIResources {
+			log.Debug("checking API resource %s", spew.Sdump(r))
 			if r.Name == n || // eg: 'checlusters'
-				r.SingularName == n || // eg: 'checluster'
+				strings.ToLower(r.SingularName) == n || // eg: 'checluster'
+				strings.ToLower(r.Kind) == n || // eg: 'checluster'
 				r.Name+"."+gv.Group == n || // eg: 'checlusters.org.eclipse.che'
 				r.SingularName+"."+gv.Group == n { // eg: 'checluster.org.eclipse.che'
 				r.Group = gv.Group
 				r.Version = gv.Version
+				apiResourceCache[n] = r // keep in cache if we have multiple resource of the same kind to terminate
 				return r, nil
 			}
 			for _, sn := range r.ShortNames {
 				if sn == n {
 					r.Group = gv.Group
 					r.Version = gv.Version
+					apiResourceCache[n] = r // keep in cache if we have multiple resource of the same kind to terminate
 					return r, nil
 				}
 			}
