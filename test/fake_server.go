@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -55,16 +56,28 @@ func NewServer(t *testing.T) *httptest.Server {
 				response = &metav1.APIGroupList{
 					Groups: []metav1.APIGroup{
 						{
-							Name: "domain",
+							Name: "customdomain",
 							Versions: []metav1.GroupVersionForDiscovery{
-								{GroupVersion: "domain/v1beta1", Version: "v1beta1"},
+								{
+									GroupVersion: "customdomain/v1beta1",
+									Version:      "v1beta1",
+								},
+							},
+						},
+						{
+							Name: "apps",
+							Versions: []metav1.GroupVersionForDiscovery{
+								{
+									GroupVersion: "apps/v1",
+									Version:      "v1",
+								},
 							},
 						},
 					},
 				}
-			case "/apis/domain/v1beta1":
+			case "/apis/customdomain/v1beta1":
 				response = &metav1.APIResourceList{
-					GroupVersion: "domain/v1beta1",
+					GroupVersion: "customdomain/v1beta1",
 					APIResources: []metav1.APIResource{
 						{
 							Name:         "customtypes",
@@ -74,15 +87,27 @@ func NewServer(t *testing.T) *httptest.Server {
 							Kind:         "CustomType"},
 					},
 				}
+			case "/apis/apps/v1":
+				response = &metav1.APIResourceList{
+					GroupVersion: "apps/v1",
+					APIResources: []metav1.APIResource{
+						{
+							Name:         "deployments",
+							SingularName: "deployment",
+							ShortNames:   []string{"deploy"},
+							Namespaced:   true,
+							Kind:         "Deployment"},
+					},
+				}
 
-			case "/api/v1/namespaces/foo":
+			case "/api/v1/namespaces/pasta":
 				response = corev1.Namespace{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
 						Kind:       "Namespace",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "foo",
+						Name: "pasta",
 					},
 					Spec: corev1.NamespaceSpec{
 						Finalizers: []corev1.FinalizerName{
@@ -93,7 +118,7 @@ func NewServer(t *testing.T) *httptest.Server {
 						Phase: "Terminating",
 					},
 				}
-			case "/api/v1/namespaces/default/pods/foo":
+			case "/api/v1/namespaces/default/pods/cookie":
 				response = corev1.Pod{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
@@ -101,7 +126,7 @@ func NewServer(t *testing.T) *httptest.Server {
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "default",
-						Name:      "foo",
+						Name:      "cookie",
 						Finalizers: []string{
 							"cheesecake",
 						},
@@ -111,15 +136,15 @@ func NewServer(t *testing.T) *httptest.Server {
 						Phase: "Terminating",
 					},
 				}
-			case "/api/v1/namespaces/explicit/pods/foo":
+			case "/api/v1/namespaces/default/pods/cookie2":
 				response = corev1.Pod{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
 						Kind:       "Pod",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "explicit",
-						Name:      "foo",
+						Namespace: "default",
+						Name:      "cookie2",
 						Finalizers: []string{
 							"cheesecake",
 						},
@@ -129,20 +154,50 @@ func NewServer(t *testing.T) *httptest.Server {
 						Phase: "Terminating",
 					},
 				}
-			case "/api/v1/namespaces/explicit/pods/bar": // no finalizer on this one
+			case "/api/v1/namespaces/dessert/pods/cookie":
 				response = corev1.Pod{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "v1",
 						Kind:       "Pod",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "explicit",
-						Name:      "foo",
+						Namespace: "dessert",
+						Name:      "cookie",
+						Finalizers: []string{
+							"cheesecake",
+						},
 					},
 					Spec: corev1.PodSpec{},
 					Status: corev1.PodStatus{
 						Phase: "Terminating",
 					},
+				}
+			case "/api/v1/namespaces/dessert/pods/cookie2": // no finalizer on this one
+				response = corev1.Pod{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Pod",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "dessert",
+						Name:      "cookie2",
+					},
+					Spec: corev1.PodSpec{},
+					Status: corev1.PodStatus{
+						Phase: "Terminating",
+					},
+				}
+			case "/apis/apps/v1/namespaces/default/deployments/latte": // no finalizer on this one
+				response = appsv1.Deployment{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Deployment",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "latte",
+					},
+					Spec: appsv1.DeploymentSpec{},
 				}
 			default:
 				fmt.Printf("object not found: %s %s\n", req.Method, req.URL)
@@ -151,9 +206,13 @@ func NewServer(t *testing.T) *httptest.Server {
 			}
 		case "PUT":
 			switch req.URL.Path {
-			case "/api/v1/namespaces/foo",
-				"/api/v1/namespaces/default/pods/foo",
-				"/api/v1/namespaces/explicit/pods/foo":
+			case "/api/v1/namespaces/cookie",
+				"/api/v1/namespaces/default/pods/cookie",
+				"/api/v1/namespaces/default/pods/cookie2",
+				"/api/v1/namespaces/dessert/pods/cookie",
+				"/api/v1/namespaces/dessert/pods/cookie2",
+				"/apis/apps/v1/namespaces/default/deployments/latte":
+
 				// here we want to verify that the resource in the incoming request has no finalizer in its metadata
 				// otherwise we return a 400 Bad Request error (unless there's something more appropriate?)
 				data, err := ioutil.ReadAll(req.Body)
@@ -162,16 +221,16 @@ func NewServer(t *testing.T) *httptest.Server {
 					w.Write([]byte(err.Error())) // nolint: errcheck
 					return
 				}
-				pod := metav1.ObjectMeta{}
-				err = json.Unmarshal(data, &pod)
+				meta := metav1.ObjectMeta{}
+				err = json.Unmarshal(data, &meta)
 				if err != nil {
 					fmt.Printf("error while unmarshaling incoming request body: %v\n", err)
 					w.WriteHeader(http.StatusInternalServerError)
 					w.Write([]byte(err.Error())) // nolint: errcheck
 					return
 				}
-				if len(pod.GetFinalizers()) > 0 {
-					fmt.Printf("unexpected finalizers: %v\n", pod.GetFinalizers())
+				if len(meta.GetFinalizers()) > 0 {
+					fmt.Printf("unexpected finalizers: %v\n", meta.GetFinalizers())
 					w.WriteHeader(http.StatusBadRequest)
 					// let's just return the request body in the response
 					response, _ := ioutil.ReadAll(req.Body)
@@ -185,9 +244,11 @@ func NewServer(t *testing.T) *httptest.Server {
 			}
 		case "DELETE":
 			switch req.URL.Path {
-			case "/api/v1/namespaces/foo",
-				"/api/v1/namespaces/default/pods/foo",
-				"/api/v1/namespaces/explicit/pods/foo":
+			case "/api/v1/namespaces/cookie",
+				"/api/v1/namespaces/default/pods/cookie",
+				"/api/v1/namespaces/default/pods/cookie2",
+				"/api/v1/namespaces/default/deploys/pasta",
+				"/api/v1/namespaces/dessert/pods/cookie":
 				// just accept the request
 				w.WriteHeader(http.StatusNoContent)
 				return

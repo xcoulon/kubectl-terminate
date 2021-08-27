@@ -32,37 +32,57 @@ func NewCommand() *cobra.Command {
 	var loglevel int
 
 	cmd := &cobra.Command{
-		Use:           "terminate",
+		Use:           "terminate (TYPE NAME | TYPE/NAME)",
 		Short:         "removes the finalizers and deletes the given resource",
-		Long:          `.`,
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Args:          cobra.RangeArgs(1, 2), // for now, accept in the form of `kind name` (not `kind/name`)
+		Args:          cobra.MinimumNArgs(1), // can terminate mulitiple resources at once
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log := logger.NewLogger(cmd.OutOrStdout(), loglevel)
-			var kind, name string
-			if len(args) == 1 {
-				args = strings.Split(args[0], "/")
-			}
-			kind = args[0]
-			name = args[1]
+			// look-up the kubeconfig to use
 			kubeconfigFile, err := getKubeconfigFile(kubeconfig)
 			if err != nil {
 				return fmt.Errorf("error while locating KUBECONFIG: %w", err)
 			}
 			log.Debug("using kubeconfig at %s", kubeconfigFile.Name())
-			if err := terminate.Terminate(kind, namespace, name, kubeconfigFile, log); err != nil {
+			// deal with resource kinds/names
+			resources := make([]terminate.ResourceMetadata, 0, len(args))
+			// if the first arg does not contain a `/`, then assume its a kind.
+			// otherwise, split all args
+			if !strings.Contains(args[0], "/") {
+				kind := args[0]
+				// all other args are the resource names (of the same kind)
+				for _, name := range args[1:] {
+					resources = append(resources, terminate.ResourceMetadata{
+						Kind:      kind,
+						Name:      name,
+						Namespace: namespace,
+					})
+				}
+			} else {
+				for _, arg := range args {
+					kindname := strings.Split(arg, "/")
+					if len(kindname) != 2 {
+						return fmt.Errorf("invalid resource name: %s", arg)
+					}
+					kind := kindname[0]
+					name := kindname[1]
+					resources = append(resources, terminate.ResourceMetadata{
+						Kind:      kind,
+						Name:      name,
+						Namespace: namespace,
+					})
+				}
+			}
+			if err := terminate.Terminate(resources, kubeconfigFile, log); err != nil {
 				return errors.Cause(err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s \"%s\" terminated", kind, name)
-			log.Info("")
-
 			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&kubeconfig, "kubeconfig", "", "", "(optional) absolute path to the kubeconfig file")
 	cmd.Flags().StringVarP(&namespace, "namespace", "n", "", "(optional) the namespace scope for this CLI request")
-	cmd.Flags().IntVarP(&loglevel, "loglevel", "v", 0, "log level for V logs")
+	cmd.Flags().IntVarP(&loglevel, "loglevel", "v", 0, "log level for V logs (set to 1 or higher to display DEBUG messages)")
 
 	return cmd
 }

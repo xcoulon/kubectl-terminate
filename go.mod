@@ -3,6 +3,7 @@ module github.com/xcoulon/kubectl-terminate
 go 1.13
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.9.0
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect

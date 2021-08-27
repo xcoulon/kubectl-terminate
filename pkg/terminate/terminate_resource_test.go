@@ -20,28 +20,86 @@ import (
 
 func TestTerminate(t *testing.T) {
 
-	log := logger.NewLogger(os.Stdout, 1) // includes 'debug' messages
+	// given
+	log := logger.NewLogger(os.Stdout, 0) // includes 'debug' messages
 
 	t.Run("ok", func(t *testing.T) {
 
-		t.Run("in default namespace", func(t *testing.T) {
-			// given
-			kubeconfig, server := setup(t)
-			defer server.Close()
-			// when
-			err := Terminate("pod", "", "foo", kubeconfig, log)
-			// then
-			require.NoError(t, err)
+		t.Run("single resource", func(t *testing.T) {
+
+			t.Run("in default namespace", func(t *testing.T) {
+				// given
+				kubeconfig, server := setup(t)
+				defer server.Close()
+				// when
+				err := Terminate([]ResourceMetadata{
+					{
+						Kind: "pod",
+						Name: "cookie",
+					},
+				}, kubeconfig, log)
+				// then
+				require.NoError(t, err)
+			})
+
+			t.Run("in another namespace", func(t *testing.T) {
+				// given
+				kubeconfig, server := setup(t)
+				defer server.Close()
+				// when
+				err := Terminate([]ResourceMetadata{
+					{
+						Kind:      "pod",
+						Name:      "cookie",
+						Namespace: "dessert",
+					},
+				}, kubeconfig, log)
+				// then
+				require.NoError(t, err)
+			})
 		})
 
-		t.Run("in other namespace", func(t *testing.T) {
-			// given
-			kubeconfig, server := setup(t)
-			defer server.Close()
-			// when
-			err := Terminate("pod", "explicit", "foo", kubeconfig, log)
-			// then
-			require.NoError(t, err)
+		t.Run("multiple resources", func(t *testing.T) {
+
+			t.Run("in default namespace", func(t *testing.T) {
+				// given
+				kubeconfig, server := setup(t)
+				defer server.Close()
+				// when
+				err := Terminate([]ResourceMetadata{
+					{
+						Kind: "pod",
+						Name: "cookie",
+					},
+					{
+						Kind: "pod",
+						Name: "cookie2",
+					},
+				}, kubeconfig, log)
+				// then
+				require.NoError(t, err)
+			})
+
+			t.Run("in another namespace", func(t *testing.T) {
+				// given
+				kubeconfig, server := setup(t)
+				defer server.Close()
+				// when
+				err := Terminate([]ResourceMetadata{
+					{
+						Kind:      "pod",
+						Namespace: "dessert",
+						Name:      "cookie",
+					},
+					{
+						Kind:      "pod",
+						Namespace: "dessert",
+						Name:      "cookie2",
+					},
+				}, kubeconfig, log)
+				// then
+				require.NoError(t, err)
+			})
 		})
 	})
 }
@@ -49,6 +107,7 @@ func TestTerminate(t *testing.T) {
 func TestLookupAPIResource(t *testing.T) {
 
 	// given
+	log := logger.NewLogger(os.Stdout, 1) // includes 'debug' messages
 	kubeconfigContent, server := setup(t)
 	kubeconfig, err := newKubeConfig(kubeconfigContent)
 	require.NoError(t, err)
@@ -62,7 +121,7 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by plural name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("namespaces", client)
+				r, err := lookupAPIResource("namespaces", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
@@ -76,7 +135,7 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by short name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("ns", client)
+				r, err := lookupAPIResource("ns", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
@@ -93,11 +152,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by unqualified singular name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("customtype", client)
+				r, err := lookupAPIResource("customtype", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -109,11 +168,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by qualified singular name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("customtype.domain", client)
+				r, err := lookupAPIResource("customtype.customdomain", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -125,11 +184,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by plural name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("customtypes", client)
+				r, err := lookupAPIResource("customtypes", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -141,11 +200,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by unqualified plural name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("customtypes", client)
+				r, err := lookupAPIResource("customtypes", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -157,11 +216,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by qualified plural name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("customtypes.domain", client)
+				r, err := lookupAPIResource("customtypes.customdomain", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -173,11 +232,11 @@ func TestLookupAPIResource(t *testing.T) {
 
 			t.Run("by short name", func(t *testing.T) {
 				// when
-				r, err := lookupAPIResource("ct", client)
+				r, err := lookupAPIResource("ct", client, log)
 				// then
 				require.NoError(t, err)
 				assert.Equal(t, metav1.APIResource{
-					Group:        "domain",
+					Group:        "customdomain",
 					Version:      "v1beta1",
 					Name:         "customtypes",
 					SingularName: "customtype",
@@ -193,10 +252,10 @@ func TestLookupAPIResource(t *testing.T) {
 
 		t.Run("unknown resource type", func(t *testing.T) {
 			// when
-			_, err := lookupAPIResource("bar", client)
+			_, err := lookupAPIResource("unknown", client, log)
 			// then
 			require.Error(t, err)
-			assert.Equal(t, err.Error(), "unknown resource type: 'bar'")
+			assert.Equal(t, err.Error(), "unknown resource type: 'unknown'")
 		})
 
 	})
@@ -214,7 +273,7 @@ func TestFetchResource(t *testing.T) {
 
 		t.Run("namespace", func(t *testing.T) {
 			// given
-			cl, err := newResourceClient(kubeconfig, "bar", metav1.APIResource{
+			cl, err := newResourceClient(kubeconfig, "pasta", metav1.APIResource{
 				Group:      "",
 				Version:    "v1",
 				Kind:       "Namespace",
@@ -223,7 +282,7 @@ func TestFetchResource(t *testing.T) {
 			})
 			require.NoError(t, err)
 			// when
-			actual, err := cl.Get("foo", metav1.GetOptions{})
+			actual, err := cl.Get("pasta", metav1.GetOptions{})
 			// then
 			require.NoError(t, err)
 			require.NotNil(t, actual)
@@ -233,7 +292,7 @@ func TestFetchResource(t *testing.T) {
 					Kind:       "Namespace",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
+					Name: "pasta",
 				},
 				Spec: corev1.NamespaceSpec{
 					Finalizers: []corev1.FinalizerName{
@@ -253,7 +312,7 @@ func TestFetchResource(t *testing.T) {
 
 		t.Run("unknown resource", func(t *testing.T) {
 			// given
-			cl, err := newResourceClient(kubeconfig, "bar", metav1.APIResource{
+			cl, err := newResourceClient(kubeconfig, "pasta", metav1.APIResource{
 				Group:      "",
 				Version:    "v1",
 				Kind:       "Namespace",
@@ -283,8 +342,8 @@ func TestCheckResource(t *testing.T) {
 				Kind:       "Pod",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "bar",
-				Name:      "foo",
+				Namespace: "pasta",
+				Name:      "cookie",
 				Finalizers: []string{
 					"custom",
 				},
@@ -312,8 +371,8 @@ func TestCheckResource(t *testing.T) {
 				Kind:       "Namespace",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:  "bar",
-				Name:       "foo",
+				Namespace:  "pasta",
+				Name:       "cookie",
 				Finalizers: []string{},
 			},
 			Spec: corev1.PodSpec{},
@@ -329,7 +388,7 @@ func TestCheckResource(t *testing.T) {
 		err = checkResource(actual)
 		require.Error(t, err)
 		assert.IsType(t, MissingFinalizerError{}, err)
-		assert.Equal(t, "resource 'foo' has no finalizers in its metadata", err.Error())
+		assert.Equal(t, "resource 'cookie' has no finalizers in its metadata", err.Error())
 	})
 }
 
@@ -343,8 +402,8 @@ func TestRemoveFinalizers(t *testing.T) {
 				Kind:       "Pod",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "bar",
-				Name:      "foo",
+				Namespace: "pasta",
+				Name:      "cookie",
 				Finalizers: []string{
 					"custom",
 				},
@@ -373,8 +432,8 @@ func TestRemoveFinalizers(t *testing.T) {
 				Kind:       "Namespace",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:  "bar",
-				Name:       "foo",
+				Namespace:  "pasta",
+				Name:       "cookie",
 				Finalizers: []string{},
 			},
 			Spec: corev1.PodSpec{},

@@ -27,7 +27,6 @@ func (l Logger) Debug(msg string, args ...interface{}) {
 		fmt.Fprintln(l.out, "")
 		return
 	}
-
 	fmt.Fprintln(l.out, fmt.Sprintf(msg, args...))
 }
 
@@ -36,18 +35,10 @@ func (l Logger) Info(msg string, args ...interface{}) {
 		fmt.Fprintln(l.out, "")
 		return
 	}
-
-	c := color.New(color.FgHiCyan)
-	c.Fprintln(l.out, fmt.Sprintf(msg, args...))
+	fmt.Fprintln(l.out, fmt.Sprintf(msg, args...))
 }
 
 func (l Logger) Error(err error) {
 	c := color.New(color.FgHiRed)
 	c.Fprintln(l.out, fmt.Sprintf("%#v", err))
-}
-
-func (l Logger) Instructions(msg string, args ...interface{}) {
-	white := color.New(color.FgHiWhite)
-	white.Fprintln(l.out, "")
-	white.Fprintln(l.out, fmt.Sprintf(msg, args...))
 }

@@ -2,7 +2,6 @@ package test
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -35,7 +34,7 @@ func NewKubeConfigFile(t *testing.T, serverURL string) (home string, kubeconfig 
 	f, err := os.Create(filepath.Join(dotKubeDir, "config"))
 	require.NoError(t, err)
 	content := NewKubeConfigContent(t, serverURL)
-	fmt.Printf("kubeconfig: %s\n%s\n", f.Name(), string(content))
+	// fmt.Printf("kubeconfig: %s\n%s\n", f.Name(), string(content))
 	_, err = f.Write(content)
 	require.NoError(t, err)
 	err = f.Close()
