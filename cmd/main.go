@@ -6,6 +6,15 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // required for GKE
 )
 
+var (
+	// BuildCommit lastest build commit (set by Makefile)
+	BuildCommit = ""
+	// BuildTag if the `BuildCommit` matches a tag
+	BuildTag = ""
+	// BuildTime set by build script (set by Makefile)
+	BuildTime = ""
+)
+
 func main() {
 	terminate.InitAndExecute()
 }
