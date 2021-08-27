@@ -6,9 +6,9 @@ image:https://github.com/xcoulon/kubectl-terminate/workflows/CI/badge.svg["CI", 
 image:https://codecov.io/gh/xcoulon/kubectl-terminate/branch/master/graph/badge.svg["Codecov", link="https://codecov.io/gh/xcoulon/kubectl-terminate"]
 image:https://img.shields.io/badge/License-Apache%202.0-blue.svg["License", link="https://opensource.org/licenses/Apache-2.0"]
 
-WARNING:: Use at your own risk!
+WARNING:: *Use at your own risk!*
 
-Sometimes you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (for example, it has been uninstalled). This is quite annoying and all the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's admit it, it's a bit cumbersome 😬
+Sometimes (hopefully on your dev cluster) you may find yourself with a namespace stuck in `Terminating` phase because one of its child resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (for example, it has been uninstalled). This is quite annoying and sadly the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it in order to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's admit it, it's a bit cumbersome 😬
 
 Say hello to `kubectl-terminate` 👋 
 
