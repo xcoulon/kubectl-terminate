@@ -27,7 +27,7 @@ On your own Kubernetes or OpenShift cluster, you can try it with the following c
 
 [source,bash]
 ----
-# create 2 pods called `keep-me` and `delete-me` that doesn't do anything
+# create 2 pods called `keep-me` and `delete-me` that don't do anything
 $ kubectl run --image radial/busyboxplus --restart=Never keep-me -- sleep 3600
 pod/delete-me created
 
