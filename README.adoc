@@ -6,18 +6,58 @@ image:https://github.com/xcoulon/kubectl-terminate/workflows/CI/badge.svg["CI", 
 image:https://codecov.io/gh/xcoulon/kubectl-terminate/branch/master/graph/badge.svg["Codecov", link="https://codecov.io/gh/xcoulon/kubectl-terminate"]
 image:https://img.shields.io/badge/License-Apache%202.0-blue.svg["License", link="https://opensource.org/licenses/Apache-2.0"]
 
+WARNING:: Use at your own risk!
 
-Sometimes you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (maybe it was uninstalled, for example). This is quite annoying and all the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's face it, it's a bit cumbersome 😬
+Sometimes you may find yourself with a namespace stuck in `Terminating` phase because one of its resource has a finalizer, but the operator (or controller) in charge of dealing with this finalizer is already gone (for example, it has been uninstalled). This is quite annoying and all the `--force`, `grace-period`, etc. flags won't help. The only way to get rid of the resource is to PATCH it to remove the finalizers, then delete it. Doing it with a good old `curl` command is possible, but let's admit it, it's a bit cumbersome 😬
 
 Say hello to `kubectl-terminate` 👋 
 
-This command takes care of removing the finalizers and deleting the resource on your behalf, using the connection settings of your choice, i.e, using the `KUBECONFIG` env var if it exists, the `--kubeconfig` flag if specified or the default location (`$HOME` on Linux and macOS and `USERPROFILE` on Windows). 
+This command takes care of removing the finalizers and deleting the resource on your behalf, using the connection settings of your choice, i.e, using the `KUBECONFIG` env var if it exists, the `--kubeconfig` flag if specified or the default location (`$HOME` on Linux and macOS and `%USERPROFILE%` on Windows). 
 
-And as its name follows the `kubectl-*` pattern, it also works as a plugin to `kubectl` and `oc` (for the OpenShift 4 users). Just make sure that the binary is in your `$PATH` and use it with `kubectl terminate pod/cheesecake` or `oc terminate pod/cheesecake` 🎉
+And since its name follows the `kubectl-*` pattern, it also works as a plugin for `kubectl` and `oc` (for OpenShift 4 users). Just make sure that the binary is in your `$PATH` and use it with `kubectl terminate pod/cheesecake` or `oc terminate pod/cheesecake` 🎉
 
 == Installation
 
-For now, run `go install github.com/xcoulon/kubectl-terminate/cmd` and make sure that `$GOPAH/bin` is in your `$PATH` or move `$GOPAH/bin/kubectl-terminate` in one of the directories of `$PATH`.
+- run `go install github.com/xcoulon/kubectl-terminate/cmd` and add `$GOPAH/bin` to `$PATH` or move `$GOPAtH/bin/kubectl-terminate` in one of the directories of `$PATH`
+- clone this repository, run `make install` and add `$GOPAH/bin` to `$PATH` or move `$GOPAtH/bin/kubectl-terminate` in one of the directories of `$PATH`
+
+== Demo
+
+On your own Kubernetes or OpenShift cluster, you can try it with the following commands:
+
+[source,bash]
+----
+# create 2 pods called `keep-me` and `delete-me` that doesn't do anything
+$ kubectl run --image radial/busyboxplus --restart=Never keep-me -- sleep 3600
+pod/delete-me created
+
+$ kubectl run --image radial/busyboxplus --restart=Never delete-me -- sleep 3600
+pod/delete-me created
+
+# patch the `delete-me` pod by adding a custom finalizer
+$ kubectl patch pod/delete-me -p '{"metadata":{"finalizers":["demo/block-me"]}}'
+pod/delete-me patched
+
+# try to delete it with the regular `delete` command
+$ kubectl delete pod/delete-me
+pod "delete-me" deleted
+^C
+
+# ... but the command blocks and the pod still exists
+$ kubectl get pods
+NAME        READY   STATUS        RESTARTS   AGE
+delete-me   0/1     Terminating   0          51s
+keep-me     1/1     Running       0          54s
+
+# delete it with the `terminate` command
+$ kubectl terminate pod/delete-me
+pod "delete-me" terminated
+
+# verify 
+$ kubectl get pods   
+NAME      READY   STATUS    RESTARTS   AGE
+keep-me   1/1     Running   0          82s
+----
 
 == Contribution
 
