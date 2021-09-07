@@ -18,8 +18,8 @@ And since its name follows the `kubectl-*` pattern, it also works as a plugin fo
 
 == Installation
 
-- run `go install github.com/xcoulon/kubectl-terminate/cmd` and add `$GOPAH/bin` to `$PATH` or move `$GOPAtH/bin/kubectl-terminate` in one of the directories of `$PATH`
-- clone this repository, run `make install` and add `$GOPAH/bin` to `$PATH` or move `$GOPAtH/bin/kubectl-terminate` in one of the directories of `$PATH`
+- run `go install github.com/xcoulon/kubectl-terminate/cmd` and add `$GOPATH/bin` to `$PATH` or move `$GOPATH/bin/kubectl-terminate` in one of the directories of `$PATH`
+- clone this repository, run `make install` and add `$GOPATH/bin` to `$PATH` or move `$GOPATH/bin/kubectl-terminate` in one of the directories of `$PATH`
 
 == Demo
 
